@@ -133,11 +133,11 @@ class MNISTDataProvider(DataProvider):
         super(MNISTDataProvider, self).__init__(
             inputs, targets, batch_size, max_num_batches, shuffle_order, rng)
 
-    # def next(self):
-    #    """Returns next data batch or raises `StopIteration` if at end."""
-    #    inputs_batch, targets_batch = super(MNISTDataProvider, self).next()
-    #    return inputs_batch, self.to_one_of_k(targets_batch)
-    #
+    def next(self):
+       """Returns next data batch or raises `StopIteration` if at end."""
+       inputs_batch, targets_batch = super(MNISTDataProvider, self).next()
+       return inputs_batch, self.to_one_of_k(targets_batch)
+    
     def __next__(self):
         return self.next()
 
@@ -156,7 +156,10 @@ class MNISTDataProvider(DataProvider):
             to zero except for the column corresponding to the correct class
             which is equal to one.
         """
-        raise NotImplementedError()
+        one_of_k_mat = np.zeros((int_targets.shape[0],10))
+        for counter, target in enumerate(int_targets):
+            one_of_k_mat[counter, target] = 1
+        return one_of_k_mat
 
 
 class MetOfficeDataProvider(DataProvider):
@@ -188,19 +191,28 @@ class MetOfficeDataProvider(DataProvider):
             'Data file does not exist at expected path: ' + data_path
         )
         # load raw data from text file
-        # ...
+        raw = np.loadtxt(data_path,skiprows=3,usecols=range(2,33))
+        assert window_size > 1, 'window_size must be at least 2.'
+        self.window_size = window_size
         # filter out all missing datapoints and flatten to a vector
-        # ...
+        filtered = raw[raw >= 0].flatten()
         # normalise data to zero mean, unit standard deviation
-        # ...
+        normalised = (filtered - filtered.mean()) / filtered.std()
         # convert from flat sequence to windowed data
-        # ...
+#         windowed = normalised[:window_size*batch_size]
+#         windowed = windowed.reshape((batch_size, window_size))
+        shape = (normalised.shape[-1] - self.window_size + 1, self.window_size)
+        strides = normalised.strides + (normalised.strides[-1],)
+        windowed = np.lib.stride_tricks.as_strided(
+            normalised, shape=shape, strides=strides)
+        
+        
         # inputs are first (window_size - 1) entries in windows
-        # inputs = ...
+        inputs = windowed[:,:-1]
         # targets are last entry in windows
-        # targets = ...
+        targets = windowed[:,-1]
         # initialise base class with inputs and targets arrays
-        # super(MetOfficeDataProvider, self).__init__(
-        #     inputs, targets, batch_size, max_num_batches, shuffle_order, rng)
+        super(MetOfficeDataProvider, self).__init__(
+            inputs, targets, batch_size, max_num_batches, shuffle_order, rng)
     def __next__(self):
             return self.next()
