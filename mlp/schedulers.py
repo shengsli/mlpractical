@@ -52,8 +52,7 @@ class CosineAnnealingWithWarmRestarts(object):
 
         self.max_learning_rate_discount_factor = max_learning_rate_discount_factor
         self.period_iteration_expansion_factor = period_iteration_expansion_factor
-
-
+        
     def update_learning_rule(self, learning_rule, epoch_number):
         """Update the hyperparameters of the learning rule.
 
@@ -65,7 +64,31 @@ class CosineAnnealingWithWarmRestarts(object):
                 attributes of this object.
             epoch_number: Integer index of training epoch about to be run.
         """
-        raise NotImplementedError
+        #number of epochs in finished periods
+        period_number = epoch_number//self.total_epochs_per_period
+        discount = self.max_learning_rate_discount_factor**period_number
+        cur_learning_rate = self.max_learning_rate * discount
+        #how many epochs have been performed since the last restart
+        T_cur = epoch_number % self.total_epochs_per_period
+        #restart after T_i epochs are performed
+        T_i = self.total_epochs_per_period * self.period_iteration_expansion_factor ** (period_number+1)
+        learning_rule.learning_rate = self.min_learning_rate + 0.5*(cur_learning_rate-self.min_learning_rate)*(1+np.cos(np.pi*T_cur/T_i))
+        return learning_rule.learning_rate
+        
 
+#         temp = (epoch_number//self.total_epochs_per_period)+1
+#         period_number = np.log(temp**self.period_iteration_expansion_factor)/np.log(temp)
+        
+#         discount = self.max_learning_rate_discount_factor**period_number
+#         self.max_learning_rate -= discount
+#         #how many epochs have been performed since the last restart
+#         T_cur = epoch_number - self.num_of_epochs_in_first_n_periods(period_number)
+#         #restart after T_i epochs are performed
+#         T_i = self.num_of_epochs_in_n_th_period(period_number)
 
+#         learning_rate = self.min_learning_rate + 0.5*(self.max_learning_rate-self.min_learning_rate)*(1+np.cos(np.pi*T_cur/T_i))
 
+#     def num_of_epochs_in_first_n_periods(self,n):
+#         return (self.period_iteration_expansion_factor**n-1)*self.total_epochs_per_period
+#     def num_of_epochs_in_n_th_period(self,n):
+#         return self.total_epochs_per_period*self.period_iteration_expansion_factor**(n-1)

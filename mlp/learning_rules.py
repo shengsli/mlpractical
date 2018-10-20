@@ -226,8 +226,11 @@ class AdamLearningRule(GradientDescentLearningRule):
         For this learning rule this corresponds to zeroing the estimates of
         the first and second moments of the gradients.
         """
-        raise NotImplementedError
-
+        for mom_1 in zip(self.moms_1):
+            mom_1 *= 0.
+        for mom_2 in zip(self.moms_2):
+            mom_2 *= 0.
+            
     def update_params(self, grads_wrt_params):
         """Applies a single update to all parameters.
         All parameter updates are performed using in-place operations and so
@@ -237,7 +240,17 @@ class AdamLearningRule(GradientDescentLearningRule):
                 with respect to each of the parameters passed to `initialise`
                 previously, with this list expected to be in the same order.
         """
-        raise NotImplementedError
+        for param, grad, mom_1, mom_2 in zip(
+            self.params, grads_wrt_params, self.moms_1, self.moms_2):
+            self.step_count += 1
+            mom_1 *= self.beta_1 
+            mom_1 += (1-self.beta_1)*grad
+            mom_2 *= self.beta_2
+            mom_2 += (1-self.beta_2)*grad**2
+            _mom_1 = mom_1/(1-self.beta_1**self.step_count)
+            _mom_2 = mom_2/(1-self.beta_2**self.step_count)
+            param -= (self.learning_rate * _mom_1 /
+                      (_mom_2**0.5 + self.epsilon))
 
 class AdamLearningRuleWithWeightDecay(GradientDescentLearningRule):
     """Adaptive moments (Adam) learning rule with Weight Decay.
@@ -306,8 +319,11 @@ class AdamLearningRuleWithWeightDecay(GradientDescentLearningRule):
         For this learning rule this corresponds to zeroing the estimates of
         the first and second moments of the gradients.
         """
-        raise NotImplementedError
-
+        for mom_1 in zip(self.moms_1):
+            mom_1 *= 0.
+        for mom_2 in zip(self.moms_2):
+            mom_2 *= 0.
+            
     def update_params(self, grads_wrt_params):
         """Applies a single update to all parameters.
         All parameter updates are performed using in-place operations and so
@@ -320,9 +336,19 @@ class AdamLearningRuleWithWeightDecay(GradientDescentLearningRule):
         # tip:
         # ηt * initial_learning_rate = learning_rate
         # ηt = learning_rate / initial_learning_rate
+        for param, grad, mom_1, mom_2 in zip(
+            self.params, grads_wrt_params, self.moms_1, self.moms_2):
+            self.step_count += 1
+            grad += self.weight_decay*param
+            mom_1 *= self.beta_1 
+            mom_1 += (1-self.beta_1)*grad
+            mom_2 *= self.beta_2
+            mom_2 += (1-self.beta_2)*grad**2
+            _mom_1 = mom_1/(1-self.beta_1**self.step_count)
+            _mom_2 = mom_2/(1-self.beta_2**self.step_count)
+            param -= (self.learning_rate * _mom_1 /
+                      (_mom_2**0.5 + self.epsilon))
 
-
-        raise NotImplementedError
 
 
 class AdaGradLearningRule(GradientDescentLearningRule):
@@ -429,16 +455,19 @@ class RMSPropLearningRule(GradientDescentLearningRule):
                 update.
         """
         super(RMSPropLearningRule, self).initialise(params)
-
-        raise NotImplementedError
+        self.sum_sq_grads = []
+        for param in self.params:
+            self.sum_sq_grads.append(np.zeros_like(param))
 
     def reset(self):
         """Resets any additional state variables to their initial values.
         For this learning rule this corresponds to zeroing all gradient
         second moment estimates.
         """
-        raise NotImplementedError
-
+        self.sum_sq_grads = []
+        for param in self.params:
+            self.sum_sq_grads.append(np.zeros_like(param))
+            
     def update_params(self, grads_wrt_params):
         """Applies a single update to all parameters.
         All parameter updates are performed using in-place operations and so
@@ -448,4 +477,9 @@ class RMSPropLearningRule(GradientDescentLearningRule):
                 with respect to each of the parameters passed to `initialise`
                 previously, with this list expected to be in the same order.
         """
-        raise NotImplementedError
+        for param, sum_sq_grad, grad in zip(
+                self.params, self.sum_sq_grads, grads_wrt_params):
+            sum_sq_grad *= self.beta
+            sum_sq_grad += (1-self.beta)*grad**2
+            param -= (self.learning_rate * grad /
+                      (sum_sq_grad + self.epsilon)**0.5)
