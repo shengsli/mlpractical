@@ -71,7 +71,7 @@ class CosineAnnealingWithWarmRestarts(object):
         #how many epochs have been performed since the last restart
         T_cur = epoch_number % self.total_epochs_per_period
         #restart after T_i epochs are performed
-        T_i = self.total_epochs_per_period * self.period_iteration_expansion_factor ** (period_number+1)
+        T_i = self.total_epochs_per_period * self.period_iteration_expansion_factor ** period_number
         learning_rule.learning_rate = self.min_learning_rate + 0.5*(cur_learning_rate-self.min_learning_rate)*(1+np.cos(np.pi*T_cur/T_i))
         return learning_rule.learning_rate
         
