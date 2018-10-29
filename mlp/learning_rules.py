@@ -251,6 +251,10 @@ class AdamLearningRule(GradientDescentLearningRule):
             _mom_2 = mom_2/(1-self.beta_2**self.step_count)
             param -= (self.learning_rate * _mom_1 /
                       (_mom_2**0.5 + self.epsilon))
+#             # efficient update
+#             alpha *= (1-self.beta_2**self.step_count)**0.5 / (1-self.beta_1**self.step_count)
+#             param -= (self.learning_rate * mom_1 /
+#                       (mom_2**0.5 + self.epsilon))
 
 class AdamLearningRuleWithWeightDecay(GradientDescentLearningRule):
     """Adaptive moments (Adam) learning rule with Weight Decay.

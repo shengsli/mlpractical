@@ -10,6 +10,7 @@ import logging
 from collections import OrderedDict
 import numpy as np
 import tqdm
+import copy
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,15 @@ class Optimiser(object):
         self.scheduler = scheduler
         self.model = model
         self.error = error
+        
+        # variables for early stopping below
+        self.best_epoch = None
+        self.best_model = copy.deepcopy(self.model)
+        self.min_val_error = None
+        self.min_val_acc = None
+        self.recent_models = dict()
+        # variables for early stopping above
+        
         self.learning_rule = learning_rule
         self.learning_rule.initialise(self.model.params)
         self.train_dataset = train_dataset
@@ -116,7 +126,7 @@ class Optimiser(object):
             ', '.join(['{0}={1:.2e}'.format(k, v) for (k, v) in stats.items()])
         ))
 
-    def train(self, num_epochs, stats_interval=5):
+    def train(self, num_epochs, stats_interval=5, early_stop=None):
         """Trains a model for a set number of epochs.
 
         Args:
@@ -143,6 +153,28 @@ class Optimiser(object):
                     stats = self.get_epoch_stats()
                     self.log_stats(epoch, epoch_time, stats)
                     run_stats.append(list(stats.values()))
+                    
+                # early stopping below                    
+                if early_stop=='early_stop':
+                    stats = self.get_epoch_stats()
+                    if epoch==1 or self.min_val_error > stats['error(valid)']:
+                        self.best_epoch = epoch
+                        self.best_model = copy.deepcopy(self.model)
+                        self.min_val_error = stats['error(valid)']
+                        self.min_val_acc = stats['acc(valid)']
+                    if len(self.recent_models) == 5:
+                        self.recent_models.pop(epoch-5) # pop the earliest model
+                    self.recent_models.update({epoch:(stats['error(valid)'],self.model)}) # add current model
+                    if self.best_epoch not in self.recent_models:
+                        self.model = copy.deepcopy(self.best_model)
+                        print("best epoch =", self.best_epoch)
+                        print("min val acc =", self.min_val_acc)
+                        del_el_num = (stats_interval * len(run_stats)) - self.best_epoch-1
+                        for i in range(0,del_el_num):
+                            run_stats.pop()
+                        break
+                # early stopping above                    
+                    
                 progress_bar.update(1)
         finish_train_time = time.time()
         total_train_time = finish_train_time - start_train_time
