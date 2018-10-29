@@ -63,6 +63,8 @@ class CosineAnnealingWithWarmRestarts(object):
                 any scheduled hyperparameters to be altered should be
                 attributes of this object.
             epoch_number: Integer index of training epoch about to be run.
+        Returns:
+            effective_learning_rate at step 'epoch_number'
         """
         sum_of_epochs = self.total_epochs_per_period
         period_num = 0
