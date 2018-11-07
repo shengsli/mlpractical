@@ -15,7 +15,7 @@ respect to the layer parameters.
 import numpy as np
 import mlp.initialisers as init
 from mlp import DEFAULT_SEED
-
+import scipy.signal
 
 class Layer(object):
     """Abstract class defining the interface for a layer."""
@@ -448,7 +448,22 @@ class ConvolutionalLayer(LayerWithParameters):
         Returns:
             outputs: Array of layer outputs of shape (batch_size, num_output_channels, output_height, output_width).
         """
-        raise NotImplementedError
+        batch_size = inputs.shape[0]
+        output_height = self.input_height - self.kernel_height + 1
+        output_width = self.input_width - self.kernel_width + 1
+        outputs = np.zeros((batch_size,self.num_output_channels,output_height, output_width))
+        
+        # loop over a batch of images
+        for image in range(batch_size):
+            # loop over F_out kernels
+            for kernel in range(self.num_output_channels):
+                # loop over F_in input feature maps
+                for input_feature_map in range(self.num_input_channels):
+                    outputs[image,kernel,:,:] += scipy.signal.convolve2d(inputs[image,input_feature_map,:,:],
+                                                                         self.kernels[kernel,input_feature_map,:,:],
+                                                                         mode='valid')
+                outputs[image,kernel,:,:] += self.biases[kernel] 
+        return outputs
 
     def bprop(self, inputs, outputs, grads_wrt_outputs):
         """Back propagates gradients through a layer.
@@ -467,7 +482,14 @@ class ConvolutionalLayer(LayerWithParameters):
             Array of gradients with respect to the layer inputs of shape
             (batch_size, num_input_channels, input_height, input_width).
         """
-        raise NotImplementedError
+        batch_size = inputs.shape[0]
+        grads_wrt_inputs = np.zeros((batch_size,self.num_input_channels,self.input_height,self.input_width))
+        for image in range(batch_size):
+            for fin in range(self.num_input_channels):
+                for fout in range(self.num_output_channels):
+                    grads_wrt_inputs[image,fin,:,:] += scipy.signal.convolve2d(grads_wrt_outputs[image,fout,:,:],
+                                                                            self.kernels[fout,fin,:,:][::-1,::-1])
+        return grads_wrt_inputs
 
     def grads_wrt_params(self, inputs, grads_wrt_outputs):
         """Calculates gradients with respect to layer parameters.
@@ -480,7 +502,18 @@ class ConvolutionalLayer(LayerWithParameters):
             list of arrays of gradients with respect to the layer parameters
             `[grads_wrt_kernels, grads_wrt_biases]`.
         """
-        raise NotImplementedError
+        batch_size = inputs.shape[0]
+        grads_wrt_kernels_height = self.input_height - grads_wrt_outputs.shape[2] + 1
+        grads_wrt_kernels_width = self.input_width - grads_wrt_outputs.shape[3] + 1
+        grads_wrt_kernels = np.zeros((batch_size,self.num_input_channels,grads_wrt_kernels_height,grads_wrt_kernels_width))
+        grads_wrt_biases = np.zeros((self.num_output_channels))
+        for image in range(batch_size):
+            for fout in range(self.num_output_channels):
+                for fin in range(self.num_input_channels):
+                    grads_wrt_kernels[fout,fin,:,:] += scipy.signal.convolve2d(inputs[image,fin,:,:][::-1,::-1],
+                                                                               grads_wrt_outputs[image,fout,:,:],
+                                                                               mode='valid')
+        return grads_wrt_kernels, grads_wrt_biases
 
     def params_penalty(self):
         """Returns the parameter dependent penalty term for this layer.
