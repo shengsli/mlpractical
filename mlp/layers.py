@@ -513,6 +513,7 @@ class ConvolutionalLayer(LayerWithParameters):
                     grads_wrt_kernels[fout,fin,:,:] += scipy.signal.convolve2d(inputs[image,fin,:,:][::-1,::-1],
                                                                                grads_wrt_outputs[image,fout,:,:],
                                                                                mode='valid')
+                grads_wrt_biases[fout] += grads_wrt_outputs[image,fout,:,:].sum()
         return grads_wrt_kernels, grads_wrt_biases
 
     def params_penalty(self):
