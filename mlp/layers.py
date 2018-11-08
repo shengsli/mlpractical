@@ -16,6 +16,7 @@ import numpy as np
 import mlp.initialisers as init
 from mlp import DEFAULT_SEED
 import scipy.signal
+import mlp.im2col as im2col
 
 class Layer(object):
     """Abstract class defining the interface for a layer."""
@@ -567,6 +568,8 @@ class MaxPooling2DLayer(Layer):
         self.size = size
         self.stride = stride
         self.cache = None
+        self.output_height = (self.input_height-self.size)//self.stride + 1
+        self.output_width = (self.input_width-self.size)//self.stride + 1
 
     def fprop(self, inputs):
         """
@@ -575,7 +578,18 @@ class MaxPooling2DLayer(Layer):
         :return: The output of the max pooling operation. Assuming a stride=2 the output should have a shape of
         (b, c, (input_height - size)/stride + 1, (input_width - size)/stride + 1)
         """
-        raise NotImplementedError
+        b,c,_,_ = inputs.shape
+        outputs = np.zeros((b,c,self.output_height,self.output_width))
+        
+        reshaped_inputs = inputs.reshape((b*c,1,self.input_height,self.input_width))
+        X_col = im2col.im2col_indices(reshaped_inputs, self.size, self.size, padding=0, stride=self.stride)
+        max_idx = np.argmax(X_col, axis=0)
+        
+        outputs = X_col[max_idx, range(max_idx.size)]
+        outputs = outputs.reshape((self.output_height,self.output_width,b,c))
+        outputs = outputs.transpose(2, 3, 0, 1)
+        
+        return outputs
 
     def bprop(self, inputs, outputs, grads_wrt_outputs):
         """
@@ -586,7 +600,21 @@ class MaxPooling2DLayer(Layer):
         :param grads_wrt_outputs: The grads wrt to the outputs, of shape equal to that of the outputs.
         :return: grads_wrt_input, of shape equal to the inputs.
         """
-        raise NotImplementedError
+        b,c,_,_ = inputs.shape
+        dout = grads_wrt_outputs
+        
+        reshaped_inputs = inputs.reshape((b*c,1,self.input_height,self.input_width))
+        X_col = im2col.im2col_indices(reshaped_inputs, self.size, self.size, padding=0, stride=self.stride)
+        max_idx = np.argmax(X_col, axis=0)
+        
+        dX_col = np.zeros_like(X_col)
+        dout_flat = dout.transpose(2, 3, 0, 1).ravel()
+        dX_col[max_idx, range(max_idx.size)] = dout_flat
+        dX = im2col.col2im_indices(dX_col, (b*c, 1, self.input_height,self.input_width), 
+                            self.size, self.size, padding=0, stride=self.stride)
+        dX = dX.reshape(inputs.shape)
+        
+        return dX
 
 
 class ReluLayer(Layer):
