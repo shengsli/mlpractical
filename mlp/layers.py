@@ -449,22 +449,33 @@ class ConvolutionalLayer(LayerWithParameters):
         Returns:
             outputs: Array of layer outputs of shape (batch_size, num_output_channels, output_height, output_width).
         """
+        fout,fin,_,_ = self.kernels.shape
         batch_size = inputs.shape[0]
         output_height = self.input_height - self.kernel_height + 1
         output_width = self.input_width - self.kernel_width + 1
-        outputs = np.zeros((batch_size,self.num_output_channels,output_height, output_width))
-        
-        # loop over a batch of images
-        for image in range(batch_size):
-            # loop over F_out kernels
-            for kernel in range(self.num_output_channels):
-                # loop over F_in input feature maps
-                for input_feature_map in range(self.num_input_channels):
-                    outputs[image,kernel,:,:] += scipy.signal.convolve2d(inputs[image,input_feature_map,:,:],
-                                                                         self.kernels[kernel,input_feature_map,:,:],
-                                                                         mode='valid')
-                outputs[image,kernel,:,:] += self.biases[kernel] 
+        inputs_col = im2col.im2col_indices(inputs, self.kernel_height, self.kernel_width, padding=0, stride=1)
+        kernels_col = self.kernels.reshape(fout, -1)
+        outputs = np.dot(kernels_col,inputs_col) + self.biases[:,None]
+        outputs = outputs.reshape(fout, output_height, output_width, batch_size)
+        outputs = outputs.transpose(3, 0, 1, 2)
         return outputs
+
+#         batch_size = inputs.shape[0]
+#         output_height = self.input_height - self.kernel_height + 1
+#         output_width = self.input_width - self.kernel_width + 1
+#         outputs = np.zeros((batch_size,self.num_output_channels,output_height, output_width))
+        
+#         # loop over a batch of images
+#         for image in range(batch_size):
+#             # loop over F_out kernels
+#             for kernel in range(self.num_output_channels):
+#                 # loop over F_in input feature maps
+#                 for input_feature_map in range(self.num_input_channels):
+#                     outputs[image,kernel,:,:] += scipy.signal.convolve2d(inputs[image,input_feature_map,:,:],
+#                                                                          self.kernels[kernel,input_feature_map,:,:],
+#                                                                          mode='valid')
+#                 outputs[image,kernel,:,:] += self.biases[kernel] 
+#         return outputs
 
     def bprop(self, inputs, outputs, grads_wrt_outputs):
         """Back propagates gradients through a layer.
@@ -483,14 +494,23 @@ class ConvolutionalLayer(LayerWithParameters):
             Array of gradients with respect to the layer inputs of shape
             (batch_size, num_input_channels, input_height, input_width).
         """
+        fout,fin,_,_ = self.kernels.shape
         batch_size = inputs.shape[0]
-        grads_wrt_inputs = np.zeros((batch_size,self.num_input_channels,self.input_height,self.input_width))
-        for image in range(batch_size):
-            for fin in range(self.num_input_channels):
-                for fout in range(self.num_output_channels):
-                    grads_wrt_inputs[image,fin,:,:] += scipy.signal.convolve2d(grads_wrt_outputs[image,fout,:,:],
-                                                                            self.kernels[fout,fin,:,:][::-1,::-1])
+        grads_wrt_outputs_col = grads_wrt_outputs.transpose(1, 2, 3, 0).reshape(fout, -1)
+        kernels_col = self.kernels.reshape(fout, -1)
+        grads_wrt_inputs_col = np.dot(kernels_col.T,grads_wrt_outputs_col)
+        grads_wrt_inputs = im2col.col2im_indices(grads_wrt_inputs_col, inputs.shape, 
+                                                 self.kernel_height, self.kernel_width, padding=0, stride=1)
         return grads_wrt_inputs
+              
+#         batch_size = inputs.shape[0]
+#         grads_wrt_inputs = np.zeros((batch_size,self.num_input_channels,self.input_height,self.input_width))
+#         for image in range(batch_size):
+#             for fin in range(self.num_input_channels):
+#                 for fout in range(self.num_output_channels):
+#                     grads_wrt_inputs[image,fin,:,:] += scipy.signal.convolve2d(grads_wrt_outputs[image,fout,:,:],
+#                                                                             self.kernels[fout,fin,:,:][::-1,::-1])
+#         return grads_wrt_inputs
 
     def grads_wrt_params(self, inputs, grads_wrt_outputs):
         """Calculates gradients with respect to layer parameters.
