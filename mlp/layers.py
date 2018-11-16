@@ -449,14 +449,13 @@ class ConvolutionalLayer(LayerWithParameters):
         Returns:
             outputs: Array of layer outputs of shape (batch_size, num_output_channels, output_height, output_width).
         """
-        fout,fin,_,_ = self.kernels.shape
         batch_size = inputs.shape[0]
         output_height = self.input_height - self.kernel_height + 1
         output_width = self.input_width - self.kernel_width + 1
         inputs_col = im2col.im2col_indices(inputs, self.kernel_height, self.kernel_width, padding=0, stride=1)
-        kernels_col = self.kernels.reshape(fout, -1)
+        kernels_col = self.kernels.reshape(self.num_output_channels, -1)
         outputs = np.dot(kernels_col,inputs_col) + self.biases[:,None]
-        outputs = outputs.reshape(fout, output_height, output_width, batch_size)
+        outputs = outputs.reshape(self.num_output_channels, output_height, output_width, batch_size)
         outputs = outputs.transpose(3, 0, 1, 2)
         return outputs
 
@@ -494,10 +493,9 @@ class ConvolutionalLayer(LayerWithParameters):
             Array of gradients with respect to the layer inputs of shape
             (batch_size, num_input_channels, input_height, input_width).
         """
-        fout,fin,_,_ = self.kernels.shape
         batch_size = inputs.shape[0]
-        grads_wrt_outputs_col = grads_wrt_outputs.transpose(1, 2, 3, 0).reshape(fout, -1)
-        kernels_col = self.kernels.reshape(fout, -1)
+        grads_wrt_outputs_col = grads_wrt_outputs.transpose(1, 2, 3, 0).reshape(self.num_output_channels, -1)
+        kernels_col = self.kernels.reshape(self.num_output_channels, -1)
         grads_wrt_inputs_col = np.dot(kernels_col.T,grads_wrt_outputs_col)
         grads_wrt_inputs = im2col.col2im_indices(grads_wrt_inputs_col, inputs.shape, 
                                                  self.kernel_height, self.kernel_width, padding=0, stride=1)
@@ -523,19 +521,28 @@ class ConvolutionalLayer(LayerWithParameters):
             list of arrays of gradients with respect to the layer parameters
             `[grads_wrt_kernels, grads_wrt_biases]`.
         """
-        batch_size = inputs.shape[0]
-        grads_wrt_kernels_height = self.input_height - grads_wrt_outputs.shape[2] + 1
-        grads_wrt_kernels_width = self.input_width - grads_wrt_outputs.shape[3] + 1
-        grads_wrt_kernels = np.zeros((batch_size,self.num_input_channels,grads_wrt_kernels_height,grads_wrt_kernels_width))
-        grads_wrt_biases = np.zeros((self.num_output_channels))
-        for image in range(batch_size):
-            for fout in range(self.num_output_channels):
-                for fin in range(self.num_input_channels):
-                    grads_wrt_kernels[fout,fin,:,:] += scipy.signal.convolve2d(inputs[image,fin,:,:][::-1,::-1],
-                                                                               grads_wrt_outputs[image,fout,:,:],
-                                                                               mode='valid')
-                grads_wrt_biases[fout] += grads_wrt_outputs[image,fout,:,:].sum()
+        inputs_col = im2col.im2col_indices(inputs, self.kernel_height, self.kernel_width, padding=0, stride=1)
+        grads_wrt_outputs_col = grads_wrt_outputs.transpose(1, 2, 3, 0).reshape(self.num_output_channels, -1)
+        grads_wrt_kernels = np.dot(grads_wrt_outputs_col,inputs_col.T)
+        grads_wrt_kernels = grads_wrt_kernels.reshape(self.kernels.shape)
+        
+        grads_wrt_biases = np.sum(grads_wrt_outputs, axis=(0, 2, 3))
+        grads_wrt_biases = grads_wrt_biases.reshape(self.num_output_channels)
         return grads_wrt_kernels, grads_wrt_biases
+        
+#         batch_size = inputs.shape[0]
+#         grads_wrt_kernels_height = self.input_height - grads_wrt_outputs.shape[2] + 1
+#         grads_wrt_kernels_width = self.input_width - grads_wrt_outputs.shape[3] + 1
+#         grads_wrt_kernels = np.zeros((batch_size,self.num_input_channels,grads_wrt_kernels_height,grads_wrt_kernels_width))
+#         grads_wrt_biases = np.zeros((self.num_output_channels))
+#         for image in range(batch_size):
+#             for fout in range(self.num_output_channels):
+#                 for fin in range(self.num_input_channels):
+#                     grads_wrt_kernels[fout,fin,:,:] += scipy.signal.convolve2d(inputs[image,fin,:,:][::-1,::-1],
+#                                                                                grads_wrt_outputs[image,fout,:,:],
+#                                                                                mode='valid')
+#                 grads_wrt_biases[fout] += grads_wrt_outputs[image,fout,:,:].sum()
+#         return grads_wrt_kernels, grads_wrt_biases
 
     def params_penalty(self):
         """Returns the parameter dependent penalty term for this layer.
@@ -598,17 +605,16 @@ class MaxPooling2DLayer(Layer):
         :return: The output of the max pooling operation. Assuming a stride=2 the output should have a shape of
         (b, c, (input_height - size)/stride + 1, (input_width - size)/stride + 1)
         """
-        b,c,_,_ = inputs.shape
-        outputs = np.zeros((b,c,self.output_height,self.output_width))
+        batch_size,fin,_,_ = inputs.shape
+        outputs = np.zeros((batch_size,fin,self.output_height,self.output_width))
         
-        reshaped_inputs = inputs.reshape((b*c,1,self.input_height,self.input_width))
-        X_col = im2col.im2col_indices(reshaped_inputs, self.size, self.size, padding=0, stride=self.stride)
-        max_idx = np.argmax(X_col, axis=0)
+        reshaped_inputs = inputs.reshape((batch_size*fin,1,self.input_height,self.input_width))
+        inputs_col = im2col.im2col_indices(reshaped_inputs, self.size, self.size, padding=0, stride=self.stride)
+        max_idx = np.argmax(inputs_col, axis=0)
         
-        outputs = X_col[max_idx, range(max_idx.size)]
-        outputs = outputs.reshape((self.output_height,self.output_width,b,c))
+        outputs = inputs_col[max_idx, range(max_idx.size)]
+        outputs = outputs.reshape((self.output_height,self.output_width,batch_size,fin))
         outputs = outputs.transpose(2, 3, 0, 1)
-        
         return outputs
 
     def bprop(self, inputs, outputs, grads_wrt_outputs):
@@ -620,21 +626,19 @@ class MaxPooling2DLayer(Layer):
         :param grads_wrt_outputs: The grads wrt to the outputs, of shape equal to that of the outputs.
         :return: grads_wrt_input, of shape equal to the inputs.
         """
-        b,c,_,_ = inputs.shape
-        dout = grads_wrt_outputs
+        batch_size,fin,_,_ = inputs.shape
+        reshaped_inputs = inputs.reshape((batch_size*fin,1,self.input_height,self.input_width))
+        inputs_col = im2col.im2col_indices(reshaped_inputs, self.size, self.size, padding=0, stride=self.stride)
+        max_idx = np.argmax(inputs_col, axis=0)
         
-        reshaped_inputs = inputs.reshape((b*c,1,self.input_height,self.input_width))
-        X_col = im2col.im2col_indices(reshaped_inputs, self.size, self.size, padding=0, stride=self.stride)
-        max_idx = np.argmax(X_col, axis=0)
-        
-        dX_col = np.zeros_like(X_col)
-        dout_flat = dout.transpose(2, 3, 0, 1).ravel()
-        dX_col[max_idx, range(max_idx.size)] = dout_flat
-        dX = im2col.col2im_indices(dX_col, (b*c, 1, self.input_height,self.input_width), 
-                            self.size, self.size, padding=0, stride=self.stride)
-        dX = dX.reshape(inputs.shape)
-        
-        return dX
+        grads_wrt_input_col = np.zeros_like(inputs_col)
+        grads_wrt_outputs_flat = grads_wrt_outputs.transpose(2, 3, 0, 1).ravel()
+        grads_wrt_input_col[max_idx, range(max_idx.size)] = grads_wrt_outputs_flat
+        grads_wrt_input = im2col.col2im_indices(grads_wrt_input_col, 
+                                                (batch_size*fin,1,self.input_height,self.input_width), 
+                                                self.size, self.size, padding=0, stride=self.stride)
+        grads_wrt_input = grads_wrt_input.reshape(inputs.shape)
+        return grads_wrt_input
 
 
 class ReluLayer(Layer):
