@@ -85,7 +85,7 @@ class FCCNetwork(nn.Module):
 
 
 class ConvolutionalNetwork(nn.Module):
-    def __init__(self, input_shape, dim_reduction_type, num_output_classes, num_filters, num_layers, use_bias=False):
+    def __init__(self, input_shape, dim_reduction_type, num_output_classes, num_filters, num_layers, stride, use_bias=False):
         """
         Initializes a convolutional network module object.
         :param input_shape: The shape of the inputs going in to the network.
@@ -102,6 +102,7 @@ class ConvolutionalNetwork(nn.Module):
         self.num_output_classes = num_output_classes
         self.use_bias = use_bias
         self.num_layers = num_layers
+        self.stride = stride
         self.dim_reduction_type = dim_reduction_type
         # initialize a module dict, which is effectively a dictionary that can collect layers and integrate them into pytorch
         self.layer_dict = nn.ModuleDict()
@@ -132,7 +133,7 @@ class ConvolutionalNetwork(nn.Module):
                                                                                        kernel_size=3,
                                                                                        out_channels=out.shape[1],
                                                                                        padding=1,
-                                                                                       bias=self.use_bias, stride=2,
+                                                                                       bias=self.use_bias, stride=self.stride,
                                                                                        dilation=1)
 
                 out = self.layer_dict['dim_reduction_strided_conv_{}'.format(i)](
