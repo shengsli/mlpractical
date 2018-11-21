@@ -11,7 +11,7 @@ do
          --num_layers 4 \
          --num_filters 64 \
          --dim_reduction_type strided_convolution \
-	 --stride $stride
+	 --stride $stride \
          --experiment_name "stats/stride/"$stride"stride/"$counter"run" \
          --use_gpu True
     done
