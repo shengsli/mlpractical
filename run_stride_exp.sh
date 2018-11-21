@@ -2,7 +2,7 @@
 for counter in {1..5}
 do
     # test stride 1 to 5
-    for stride in {1 3 4}
+    for stride in 1 3 4
     do
         mkdir -p "stats/stride/"$stride"stride"
         python mlp/pytorch_experiment_scripts/train_evaluate_emnist_classification_system.py \
