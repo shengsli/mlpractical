@@ -191,7 +191,7 @@ class ExperimentBuilder(nn.Module):
             # create a string to use to report our epoch metrics
             epoch_elapsed_time = time.time() - epoch_start_time  # calculate time taken for epoch
             epoch_elapsed_time = "{:.4f}".format(epoch_elapsed_time)
-            FILENAME = self.experiment_logs + '/time.txt'
+            FILENAME = self.experiment_logs + '/time.csv'
             with open(FILENAME, 'a') as f:
                 print(epoch_elapsed_time, file=f)
             print("Epoch {}:".format(epoch_idx), out_string, "epoch time", epoch_elapsed_time, "seconds")
