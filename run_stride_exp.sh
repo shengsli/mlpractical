@@ -4,14 +4,14 @@ do
     # test stride 1 to 5
     for stride in {1..4}
     do
-        mkdir -p "stats/stride/"$dim_reduction_type"_"$stride"stride"
+        mkdir -p "stats/stride/"$stride"stride"
         python mlp/pytorch_experiment_scripts/train_evaluate_emnist_classification_system.py \
          --batch_size 100 \
          --seed 0 \
          --num_layers 4 \
          --num_filters 64 \
          --dim_reduction_type strided_convolution \
-         --experiment_name "stats/stride/"$dim_reduction_type"_"$stride"stride/"$counter"run" \
+         --experiment_name "stats/stride/"$stride"stride/"$counter"run" \
          --use_gpu True
     done
 done
