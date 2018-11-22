@@ -23,7 +23,7 @@ for stride in range(1,5):
     avg_time = all_time.mean()
     std_time = all_time.std()
     best_epoch = np.argmin(avg_data[:,3])
-    print("%d & %d & %.2f$\pm$%.2f & %.2f$\pm$%.2f & %.2f$\pm$%.2f" %
+    print("%d & %d & %.3f$\pm$%.3f & %.3f$\pm$%.3f & %.1f$\pm$%.1f" %
           (stride, best_epoch, 
            avg_test[0], std_test[0],
            avg_test[1], std_test[1],
