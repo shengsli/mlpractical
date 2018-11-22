@@ -1,10 +1,10 @@
-# run 5 times, 3 times actually
-for counter in {3..5}
+# run 5 times
+for counter in {1..5}
 do
     # test 4 dim reduction
     for dim_reduction_type in max_pooling avg_pooling
     do
-	mkdir -p "stats/num_filters/"$dim_reduction_type"_"$num_filters"filters"
+	mkdir -p "stats/pooling/"$dim_reduction_type
 	python mlp/pytorch_experiment_scripts/train_evaluate_emnist_classification_system.py \
 	       --batch_size 100 \
 	       --seed 0 \
