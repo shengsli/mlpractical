@@ -76,6 +76,8 @@ class ExperimentBuilder(nn.Module):
         else:
             self.starting_epoch = 0
 
+        print(torch.cuda.max_memory_allocated(device=torch.cuda.current_device())) # max memory usage by tensors for current device
+
     def run_train_iter(self, x, y):
         """
         Receives the inputs and targets for the model and runs a training iteration. Returns loss and accuracy metrics.
