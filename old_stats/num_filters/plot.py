@@ -9,10 +9,10 @@ import csv
 #     "val_loss": data[:,3]
 # }
 
-for batch_size in [20,40,200]:
-    best_model_data = np.loadtxt('avg_pooling_{0}batch_size/result_outputs/test_summary.csv'.format(batch_size),
+for num_filters in [4,16,32]:
+    best_model_data = np.loadtxt('avg_pooling_4layers_{0}filters/result_outputs/test_summary.csv'.format(num_filters),
                       delimiter=',', skiprows=1)
-    data = np.loadtxt('avg_pooling_{0}batch_size/result_outputs/summary.csv'.format(batch_size),
+    data = np.loadtxt('avg_pooling_4layers_{0}filters/result_outputs/summary.csv'.format(num_filters),
                       delimiter=',', skiprows=1)
     best_val_epoch = np.argmin(data[:,3])
     print("%d & %.3f & %.3f" % (best_val_epoch,best_model_data[0],best_model_data[1]))
