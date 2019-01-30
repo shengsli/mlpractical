@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-run_times = 1
+run_times = 5
 
 all_data = np.empty((run_times,100,4))
 all_test = np.empty((run_times,2))
